@@ -37,6 +37,38 @@ Tools = {
 
 
 }
+frameSize = cc.Director:getInstance():getWinSize()
+ui_ = function(nativeWidget, name)
+  local u = ccui.Helper:seekWidgetByName( nativeWidget, name)
+  return u
+end
+local tt={
+    __index = function(t,k)
+      local u = ui_(t.nativeUI, k)
+      rawset(t,k,u)
+      return u
+    end
+  }
+function ui_delegate(nativeUI)
+  if(nativeUI == nil)then
+    return nil
+  end
+  
+  local r = { ["nativeUI"] = nativeUI }
+  setmetatable( r, tt)
+  return r
+end
+function ui_add_click_listener(ui, f ,sound) 
+    ui:addTouchEventListener(
+        function(sender,eventType)
+            if eventType == ccui.TouchEventType.ended then
+                
+                f(sender,eventType)
+            end
+        end
+    )
+end
+
 
 
 function tonum(nu)
@@ -100,4 +132,53 @@ function Scheduler.unscheduleGlobal(handle)
     if handle ~= nil then
         sharedScheduler:unscheduleScriptEntry(handle)
     end
+end
+
+-- 运行一次
+function Scheduler.performWithDelayGlobal(listener, delay)
+    local handle
+    handle = Scheduler.scheduleGlobal(
+        function()
+        Scheduler.unscheduleGlobal(handle)
+        listener()
+    end, delay)
+    return handle
+end
+
+-- 有限次数的倒计时, time = 次数
+function Scheduler.scheduleGlobalWithTime(listener, interval, time, onComplete)
+    local handle
+    local i = time
+    handle = Scheduler.scheduleGlobal(function()
+        i = i - 1
+        listener(i)
+        if(i <= 0)then
+          Scheduler.unscheduleGlobal(handle)
+          if(onComplete ~= nil)then
+            onComplete()
+          end
+        end
+    end, interval, false)
+    return handle
+end
+
+function Scheduler.schedulePreGlobalWithTime(listener, interval, time, onComplete)
+    local handle
+    local i = time
+    handle = Scheduler.scheduleGlobal(function()
+        i = i - 1
+        cclog("code"..GameUI.num)
+        if(GameUI.num == 1)then
+            Scheduler.unscheduleGlobal(handle)
+        else
+            listener(i)
+            if(i <= 0 )then
+                Scheduler.unscheduleGlobal(handle)
+                if(onComplete ~= nil)then
+                    onComplete()
+                end
+            end
+        end 
+    end, interval, false)
+    return handle
 end
